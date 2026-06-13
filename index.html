@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>具身智能推理优化 · SmolVLA + LeRobot 性能仪表盘</title>
+    <!-- Chart.js 轻量图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- 平滑滚动 & 交叉观察 (可选动画) -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: radial-gradient(circle at 10% 20%, #0a0f1e, #03050b);
+            color: #eef2ff;
+            line-height: 1.5;
+            scroll-behavior: smooth;
+        }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #60a5fa;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 2rem 3rem;
+        }
+
+        /* 颗粒噪声背景 (增加质感) */
+        .noise-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+            z-index: 0;
+        }
+
+        .glass-card {
+            background: rgba(15, 25, 45, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2rem;
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            transition: transform 0.25s ease, box-shadow 0.3s ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.5);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        /* 标题渐变 */
+        .gradient-text {
+            background: linear-gradient(120deg, #38bdf8, #a78bfa, #c084fc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 700;
+        }
+
+        h1 {
+            font-size: 3.2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #9ca3af;
+            border-left: 3px solid #38bdf8;
+            padding-left: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* 指标卡片网格 */
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.8rem;
+            margin-bottom: 3rem;
+        }
+
+        .metric-card {
+            background: rgba(10, 20, 35, 0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 1.5rem;
+            padding: 1.6rem;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            transition: all 0.2s;
+        }
+        .metric-card:hover {
+            border-color: #3b82f6;
+            background: rgba(20, 40, 65, 0.7);
+        }
+
+        .metric-value {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #38bdf8;
+            line-height: 1.2;
+            margin-top: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+        .metric-label {
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            font-weight: 600;
+            color: #9ca3af;
+        }
+        .metric-unit {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #6b7280;
+        }
+
+        .speedup-badge {
+            background: #facc1522;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #facc15;
+            margin-top: 0.75rem;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 图表区域双栏 */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+        }
+        .chart-card {
+            padding: 1.5rem;
+        }
+        .chart-title {
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        /* 表格样式 */
+        .optim-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .optim-table th {
+            text-align: left;
+            padding: 0.9rem 0.5rem;
+            border-bottom: 1px solid #334155;
+            color: #38bdf8;
+            font-weight: 600;
+        }
+        .optim-table td {
+            padding: 0.9rem 0.5rem;
+            border-bottom: 1px solid #1e2a3e;
+            color: #e2e8f0;
+        }
+        .optim-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #6b7280;
+            border-top: 1px solid #1e293b;
+            padding-top: 2rem;
+        }
+
+        @media (max-width: 760px) {
+            .container {
+                padding: 1.2rem;
+            }
+            h1 {
+                font-size: 2.2rem;
+            }
+            .metric-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="noise-bg"></div>
+<div class="container">
+    <!-- 头部区域 -->
+    <div class="glass-card" style="padding: 2rem; margin-bottom: 2rem; text-align: center;">
+        <div style="display: inline-block; background: #1e293b80; border-radius: 100px; padding: 0.2rem 0.8rem; margin-bottom: 1rem;">
+            <span style="font-size: 0.8rem;">⚡ 高性能推理基础设施</span>
+        </div>
+        <h1><span class="gradient-text">具身智能推理优化</span><br>LeRobot + SmolVLA 性能突破</h1>
+        <div class="subtitle" style="max-width: 700px; margin-left: auto; margin-right: auto; text-align: center; border-left: none; border-top: 1px solid #334155; padding-top: 0.5rem;">
+            多卡通信优化 · 异步流水线 · 端到端延迟降低53%
+        </div>
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 0.5rem;">
+            <span class="speedup-badge" style="background: #10b98122; color: #34d399;">✅ DDP 加速比 3.84×</span>
+            <span class="speedup-badge" style="background: #3b82f622; color: #60a5fa;">⚙️ NCCL NVLink 全互联</span>
+            <span class="speedup-badge" style="background: #f59e0b22; color: #fbbf24;">📦 异步推理 2.14×</span>
+        </div>
+    </div>
+
+    <!-- 关键指标卡片 -->
+    <div class="metric-grid">
+        <div class="metric-card">
+            <div class="metric-label">单卡吞吐量 (PyTorch)</div>
+            <div class="metric-value">25.21 <span class="metric-unit">FPS</span></div>
+            <div style="font-size: 0.9rem; color: #9ca3af;">延迟 ≈ 39.7 ms</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">四卡 DDP (NVLink)</div>
+            <div class="metric-value">96.84 <span class="metric-unit">FPS</span></div>
+            <div style="font-size: 0.9rem; color: #9ca3af;">加速比 <strong style="color:#facc15;">3.84×</strong> (接近线性)</div>
+            <div class="speedup-badge" style="background: #10b98122; margin-top: 0.8rem;">🚀 通信开销极小</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">异步推理 端到端加速</div>
+            <div class="metric-value">2.14<span class="metric-unit">×</span></div>
+            <div style="font-size: 0.9rem; color: #9ca3af;">同步 4477ms → 异步 2088ms</div>
+            <div class="speedup-badge" style="background: #f59e0b22;">⚡ 解耦推理与执行</div>
+        </div>
+    </div>
+
+    <!-- 图表双栏 -->
+    <div class="charts-row">
+        <div class="glass-card chart-card">
+            <div class="chart-title">📈 吞吐量对比 (FPS)</div>
+            <div style="height: 280px;">
+                <canvas id="throughputChart"></canvas>
+            </div>
+        </div>
+        <div class="glass-card chart-card">
+            <div class="chart-title">⏱️ 端到端延迟对比 (ms)</div>
+            <div style="height: 280px;">
+                <canvas id="latencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 优化细节表格 + 环境信息 -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+        <div class="glass-card" style="padding: 1.5rem;">
+            <div class="chart-title">🔧 优化措施与成果</div>
+            <table class="optim-table">
+                <thead>
+                    <tr><th>优化类型</th><th>具体措施</th><th>性能提升</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>分布式通信</td><td>NCCL 调优 + NVLink 全互联</td><td>4卡加速比 3.84×</td></tr>
+                    <tr><td>异步推理</td><td>生产者-消费者解耦</td><td>端到端耗时 -53%</td></tr>
+                    <tr><td>源码补丁</td><td>修复 pad_vector, make_att_2d_masks, tokenizer 属性</td><td>模型正常运行</td></tr>
+                    <tr><td>环境适配</td><td>Python 3.12 / PyTorch 2.11 / CUDA 12.8</td><td>兼容最新 LeRobot</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="glass-card" style="padding: 1.5rem;">
+            <div class="chart-title">🖥️ 硬件 & 软件栈</div>
+            <table class="optim-table">
+                <tr><td style="width: 35%;">GPU 型号</td><td>4× NVIDIA H20 (NVLink 全互联)</td></tr>
+                <tr><td>显存</td><td>80GB × 4</td></tr>
+                <tr><td>CUDA 版本</td><td>12.8</td></tr>
+                <tr><td>PyTorch</td><td>2.11.0+cu130</td></tr>
+                <tr><td>LeRobot</td><td>v0.5.2 (定制补丁)</td></tr>
+                <tr><td>NCCL</td><td>2.28.9 (NVLink 优化)</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 仓库链接与致谢 -->
+    <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+        <div class="chart-title" style="justify-content: center;">📂 项目仓库</div>
+        <p style="margin-bottom: 0.5rem;">优化后的代码、补丁及基准测试脚本已开源：</p>
+        <a href="https://github.com/RA1ha2/HAHAHA" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 500;">github.com/RA1ha2/HAHAHA</a>
+        <div style="margin-top: 1rem; font-size: 0.85rem; color: #6b7280;">
+            核心修改位于 <code style="background: #0f172a; padding: 0.2rem 0.4rem; border-radius: 6px;">optimized_patches/</code> 目录
+        </div>
+    </div>
+
+    <footer>
+        <div>项目完成于 2026年6月 | 基于 LeRobot + SmolVLA  | 硬件: 4×H20 NVLink 集群</div>
+        <div style="margin-top: 0.5rem;">⚡ 推理基础设施优化 | 工程落地 + 系统架构设计</div>
+    </footer>
+</div>
+
+<script>
+    // 吞吐量柱状图
+    const ctx1 = document.getElementById('throughputChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: ['单卡 (PyTorch)', '四卡 DDP (NVLink)'],
+            datasets: [{
+                label: '吞吐量 (FPS)',
+                data: [25.21, 96.84],
+                backgroundColor: ['#3b82f6', '#10b981'],
+                borderRadius: 10,
+                barPercentage: 0.65,
+                categoryPercentage: 0.8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { labels: { color: '#e2e8f0', font: { weight: '500' } } },
+                tooltip: { backgroundColor: '#0f172a', titleColor: '#f1f5f9', bodyColor: '#cbd5e1' }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    title: { display: true, text: 'FPS', color: '#9ca3af' }, 
+                    ticks: { color: '#cbd5e1' },
+                    grid: { color: '#1e293b' }
+                },
+                x: { ticks: { color: '#e2e8f0' }, grid: { display: false } }
+            }
+        }
+    });
+
+    // 延迟对比柱状图
+    const ctx2 = document.getElementById('latencyChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: ['同步推理 (串行)', '异步推理 (重叠)'],
+            datasets: [{
+                label: '端到端总耗时 (ms)',
+                data: [4477, 2088],
+                backgroundColor: ['#f97316', '#facc15'],
+                borderRadius: 10,
+                barPercentage: 0.65
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { labels: { color: '#e2e8f0' } },
+                tooltip: { backgroundColor: '#0f172a' }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    title: { display: true, text: '毫秒 (ms)', color: '#9ca3af' }, 
+                    ticks: { color: '#cbd5e1' },
+                    grid: { color: '#1e293b' }
+                },
+                x: { ticks: { color: '#e2e8f0' }, grid: { display: false } }
+            }
+        }
+    });
+</script>
+</body>
+</html>
