@@ -6,7 +6,6 @@
     <title>具身智能推理优化 · SmolVLA + LeRobot 性能仪表盘</title>
     <!-- Chart.js 轻量图表库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- 平滑滚动 & 交叉观察 (可选动画) -->
     <style>
         * {
             margin: 0;
@@ -22,7 +21,6 @@
             scroll-behavior: smooth;
         }
 
-        /* 自定义滚动条 */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -45,7 +43,6 @@
             padding: 2rem 2rem 3rem;
         }
 
-        /* 颗粒噪声背景 (增加质感) */
         .noise-bg {
             position: fixed;
             top: 0;
@@ -70,7 +67,6 @@
             border-color: rgba(56, 189, 248, 0.4);
         }
 
-        /* 标题渐变 */
         .gradient-text {
             background: linear-gradient(120deg, #38bdf8, #a78bfa, #c084fc);
             background-clip: text;
@@ -94,7 +90,6 @@
             margin-bottom: 2rem;
         }
 
-        /* 指标卡片网格 */
         .metric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -148,7 +143,6 @@
             backdrop-filter: blur(4px);
         }
 
-        /* 图表区域双栏 */
         .charts-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -167,7 +161,6 @@
             font-size: 1.2rem;
         }
 
-        /* 表格样式 */
         .optim-table {
             width: 100%;
             border-collapse: collapse;
@@ -214,7 +207,6 @@
 <body>
 <div class="noise-bg"></div>
 <div class="container">
-    <!-- 头部区域 -->
     <div class="glass-card" style="padding: 2rem; margin-bottom: 2rem; text-align: center;">
         <div style="display: inline-block; background: #1e293b80; border-radius: 100px; padding: 0.2rem 0.8rem; margin-bottom: 1rem;">
             <span style="font-size: 0.8rem;">⚡ 高性能推理基础设施</span>
@@ -230,7 +222,6 @@
         </div>
     </div>
 
-    <!-- 关键指标卡片 -->
     <div class="metric-grid">
         <div class="metric-card">
             <div class="metric-label">单卡吞吐量 (PyTorch)</div>
@@ -251,7 +242,6 @@
         </div>
     </div>
 
-    <!-- 图表双栏 -->
     <div class="charts-row">
         <div class="glass-card chart-card">
             <div class="chart-title">📈 吞吐量对比 (FPS)</div>
@@ -267,7 +257,6 @@
         </div>
     </div>
 
-    <!-- 优化细节表格 + 环境信息 -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
         <div class="glass-card" style="padding: 1.5rem;">
             <div class="chart-title">🔧 优化措施与成果</div>
@@ -296,11 +285,10 @@
         </div>
     </div>
 
-    <!-- 仓库链接与致谢 -->
     <div class="glass-card" style="padding: 1.5rem; text-align: center;">
         <div class="chart-title" style="justify-content: center;">📂 项目仓库</div>
         <p style="margin-bottom: 0.5rem;">优化后的代码、补丁及基准测试脚本已开源：</p>
-        <a href="https://github.com/RA1ha2/HAHAHA" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 500;">github.com/RA1ha2/HAHAHA</a>
+        <a href="https://github.com/RA1ha2/smolvla-inference-optimization" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 500;">github.com/RA1ha2/smolvla-inference-optimization</a>
         <div style="margin-top: 1rem; font-size: 0.85rem; color: #6b7280;">
             核心修改位于 <code style="background: #0f172a; padding: 0.2rem 0.4rem; border-radius: 6px;">optimized_patches/</code> 目录
         </div>
@@ -313,7 +301,6 @@
 </div>
 
 <script>
-    // 吞吐量柱状图
     const ctx1 = document.getElementById('throughputChart').getContext('2d');
     new Chart(ctx1, {
         type: 'bar',
@@ -347,7 +334,6 @@
         }
     });
 
-    // 延迟对比柱状图
     const ctx2 = document.getElementById('latencyChart').getContext('2d');
     new Chart(ctx2, {
         type: 'bar',
